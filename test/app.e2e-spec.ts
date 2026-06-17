@@ -3,10 +3,12 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
 import { AppModule } from './../src/app.module';
 import { PrismaService } from './../src/prisma/prisma.service';
+import { SLUG_LENGTH } from 'src/links/slug';
 
 describe('Links (e2e)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
+  const createdSlugs: string[] = [];
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -27,9 +29,11 @@ describe('Links (e2e)', () => {
   });
 
   afterAll(async () => {
-    await prisma.link.deleteMany({
-      where: { originalUrl: { contains: 'example-e2e' } },
-    });
+    if (createdSlugs.length > 0) {
+      await prisma.link.deleteMany({
+        where: { slug: { in: createdSlugs } },
+      });
+    }
     await app.close();
   });
 
@@ -44,7 +48,8 @@ describe('Links (e2e)', () => {
       clickCount: 0,
     });
     expect(typeof res.body.slug).toBe('string');
-    expect(res.body.slug).toHaveLength(7);
+    expect(res.body.slug).toHaveLength(SLUG_LENGTH);
+    createdSlugs.push(res.body.slug);
   });
 
   it('POST /links rejects an invalid URL with 400', async () => {
